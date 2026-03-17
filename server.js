@@ -18,6 +18,33 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
 
+// Endpoint /v1/models para compatibilidad con OpenAI
+app.get('/v1/models', async (req, res) => {
+  try {
+    const response = await fetch(`${TARGET}/api/tags`);
+    if (!response.ok) {
+      return res.status(500).json({ error: 'Failed to fetch models from Ollama' });
+    }
+    const data = await response.json();
+    
+    // Convertir formato Ollama a formato OpenAI
+    const models = data.models?.map((m) => ({
+      id: m.name,
+      object: 'model',
+      created: Math.floor(new Date(m.modified_at || Date.now()).getTime() / 1000),
+      owned_by: 'ollama',
+    })) || [];
+    
+    res.json({
+      object: 'list',
+      data: models,
+    });
+  } catch (error) {
+    console.error('Error fetching models:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 const limiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
